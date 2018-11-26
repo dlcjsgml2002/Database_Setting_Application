@@ -132,7 +132,7 @@ BEGIN
    END;
 CREATE PROCEDURE proc_sale_stat()
 BEGIN
-select sum(@saleprice=:price*salecnt) sale_price,
+select sum(@saleprice:=price*salecnt) sale_price,
 sum(@addtax := ceil(@saleprice/11)) addtax_price,
 sum(@supprice := @saleprice - @addtax) supply_price
 from sale s join product p on s.code = p.code;
@@ -147,7 +147,7 @@ begin
 declare sale_price integer;
 declare addtax integer;
 declare supply_price integer;
-declare margin_price intrger;
+declare margin_price integer;
 
 set sale_price = _price * _salecnt;
 set addtax = ceil(sale_price/11);
@@ -159,7 +159,7 @@ end;
 
 -- trigger
 create  trigger tri_sale_insert_after_detail
-after insert in sale
+after insert on sale
 for each row 
 begin 
 	set @saleprice = new.price * new.salecnt,
@@ -169,7 +169,7 @@ begin
 	
 	insert into saledetail(no, sale_price, addTax, supply_price, margin_price)
 	values(new.no, @saleprice, @addtax, @supprice, @marprice);
-
+end;
 
 create trigger tri_sale_update_after_detail
 after update on sale
@@ -182,6 +182,7 @@ BEGIN
    
    UPDATE saledetail
    SET sale_price=@saleprice, addTax=@addtax, supply_price=@supprice, margin_price=@manPrice
+   where no = new.no;
 END;
 
 create trigger tri_sale_delete_after_detail
@@ -191,16 +192,3 @@ BEGIN
    delete from saledetail
    where no = old.no;
 END;
-
-
-
-
-
-
-
-
-
-
-
-	
-

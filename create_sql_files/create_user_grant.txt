@@ -1,15 +1,15 @@
-﻿--drop user
+﻿-- drop user
 drop user 'user_coffee2'@'%';
 drop user 'user_coffee2'@'localhost';
 
---해당데이터 베이스에 select, insert,update,trigger 권한을 계정 생성과 부여
+-- 해당데이터 베이스에 select, insert,update,trigger 권한을 계정 생성과 부여
 grant select, insert,update,delete,trigger on coffee2.*to 'user_coffee2'@'%' identified by 'rootroot';
 grant select, insert,update,delete,trigger on coffee2.*to 'user_coffee2'@'localhost' identified by 'rootroot'; 
 
---해당 계정에 procedure 실행 권한부여
+-- 해당 계정에 procedure 실행 권한부여
 GRANT Execute ON coffee2.*To 'user_coffee2'@'%';
 GRANT Execute ON coffee2.*To 'user_coffee2'@'localhost';
 
---mysql -유저에게 -jdbc-로-procedure-권한 추가 해주기
+-- mysql -유저에게 -jdbc-로-procedure-권한 추가 해주기
 GRANT SELECT, INSERT, UPDATE, DELETE ON `mysql`.`proc`TO 'user_coffee2'@'%';
 GRANT SELECT, INSERT, UPDATE, DELETE ON `mysql`.`proc`TO 'user_coffee2'@'localhost';
