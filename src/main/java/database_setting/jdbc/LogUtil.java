@@ -10,14 +10,22 @@ public class LogUtil {
 	static final Logger LOG = LogManager.getLogger();
 
 	public static void prnLog(PreparedStatement pstmt) {
-		LOG.trace(pstmt.toString().substring(pstmt.toString().lastIndexOf(":") + 2));
+		String msg = pstmt.toString();
+		int startIndex = msg.lastIndexOf(":") + 2;
+		int endIndex = msg.length() - 1;
+		LOG.trace(msg.substring(startIndex, endIndex));
 	}
 
 	public static void prnLog(String message) {
 		LOG.trace(String.format("%s", message));
 	}
 
+	public static void prnLog(Object object) {
+		LOG.trace(object.toString());
+	}
+
 	public static void prnLog(SQLException e) {
-		LOG.trace(String.format("errorCode %s errorMessage %s", e.getErrorCode(), e.getMessage()));
+		LOG.trace(String.format("Error Code : %d%nSQL STATE : %s%nMessage : %s%n", e.getErrorCode(), e.getSQLState(),
+				e.getMessage()));
 	}
 }

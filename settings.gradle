@@ -15,4 +15,4 @@ include 'api'
 include 'services:webservice'
 */
 
-rootProject.name = 'database_setting'
+rootProject.name = 'Database_Setting_Application'

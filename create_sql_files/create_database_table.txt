@@ -1,0 +1,206 @@
+-- db 존재하면 삭제
+drop database if exists coffee2;
+
+-- db 생성
+CREATE database coffee2;
+
+-- db 선택
+use coffee2;
+
+-- 제품 
+CREATE TABLE coffee2.product (
+	code CHAR(4)     NOT NULL COMMENT '코드', -- 코드
+	name VARCHAR(20) NOT NULL COMMENT '이름' -- 이름
+)
+COMMENT '제품 ';
+
+-- 제품 
+ALTER TABLE coffee2.product
+	ADD CONSTRAINT PK_product -- 제품  기본키
+		PRIMARY KEY (
+			code -- 코드
+		);
+
+-- 판매정보 
+CREATE TABLE coffee2.sale (
+	no         int(11) NOT NULL COMMENT '번호', -- 번호
+	code       CHAR(4) NOT NULL COMMENT '제품코드', -- 제품코드
+	price      INT(11) NOT NULL COMMENT '제품단가', -- 제품단가
+	saleCnt    INT(11) NOT NULL COMMENT '판매량', -- 판매량
+	marginRate INT(11) NOT NULL COMMENT '마진율' -- 마진율
+)
+COMMENT '판매정보 ';
+
+-- 판매정보 
+ALTER TABLE coffee2.sale
+	ADD CONSTRAINT PK_sale -- 판매정보  기본키
+		PRIMARY KEY (
+			no -- 번호
+		);
+
+-- 판매세부정보 
+CREATE TABLE coffee2.saledetail (
+	no           int(11) NOT NULL COMMENT '번호', -- 번호
+	sale_price   INT(11) NOT NULL COMMENT '판매금액', -- 판매금액
+	addTax       INT(11) NOT NULL COMMENT '부가세액', -- 부가세액
+	supply_price INT(11) NOT NULL COMMENT '공급가액', -- 공급가액
+	margin_price INT(11) NOT NULL COMMENT '마진액' -- 마진액
+)
+COMMENT '판매세부정보 ';
+
+-- 하나의 테이블
+CREATE TABLE coffee2.salefull (
+	no           int(11) NOT NULL COMMENT '번호', -- 번호
+	code         CHAR(4) NOT NULL COMMENT '코드', -- 코드
+	price        INT(11) NOT NULL COMMENT '제품단가', -- 제품단가
+	saleCnt      INT(11) NOT NULL COMMENT '판매량', -- 판매량
+	marginRate   INT(11) NOT NULL COMMENT '마진율', -- 마진율
+	sale_price   INT(11) NOT NULL COMMENT '판매금액', -- 판매금액
+	addTax       INT(11) NOT NULL COMMENT '부가세액', -- 부가세액
+	supply_price INT(11) NOT NULL COMMENT '공급가액', -- 공급가액
+	margin_price INT(11) NOT NULL COMMENT '마진액' -- 마진액
+)
+COMMENT '하나의 테이블';
+
+-- 하나의 테이블
+ALTER TABLE coffee2.salefull
+	ADD CONSTRAINT PK_salefull -- 하나의 테이블 기본키
+		PRIMARY KEY (
+			no -- 번호
+		);
+
+ALTER TABLE coffee2.salefull
+	MODIFY COLUMN no int(11) NOT NULL AUTO_INCREMENT COMMENT '번호';
+
+-- 판매정보 
+ALTER TABLE coffee2.sale
+	ADD CONSTRAINT FK_product_TO_sale -- 제품  -> 판매정보 
+		FOREIGN KEY (
+			code -- 제품코드
+		)
+		REFERENCES coffee2.product ( -- 제품 
+			code -- 코드
+		);
+
+-- 판매세부정보 
+ALTER TABLE coffee2.saledetail
+	ADD CONSTRAINT FK_sale_TO_saledetail -- 판매정보  -> 판매세부정보 
+		FOREIGN KEY (
+			no -- 번호
+		)
+		REFERENCES coffee2.sale ( -- 판매정보 
+			no -- 번호
+		);
+
+-- 하나의 테이블
+ALTER TABLE coffee2.salefull
+	ADD CONSTRAINT FK_product_TO_salefull -- 제품  -> 하나의 테이블
+		FOREIGN KEY (
+			code -- 코드
+		)
+		REFERENCES coffee2.product ( -- 제품 
+			code -- 코드
+		);
+		
+-- procedure drop
+drop procedure if exists proc_saledetail_orderby;
+drop procedure if exists proc_sale_stat;
+
+-- procedure drop
+Drop PROCEDURE if exists tri_sale_insert_after_detail;
+Drop PROCEDURE if exists tri_sale_update_after_detail;
+Drop PROCEDURE if exists tri_sale_delete_after_detail;	
+
+-- procedure or trigger
+CREATE PROCEDURE proc_saledetail_orderby (in isSalePrice boolean)
+BEGIN
+   set @score:=0, @rank:=0;
+   
+   select
+      greatest(@rank := if(@score = if(isSalePrice, saleprice, marginprice),@rank, @rank +1),
+      least(0,@score := if(isSalePrice,saleprice,marginprice)) )as rank,
+      code, name, price, salecnt, supplyprice, addtax, saleprice, marginrate, marginprice
+   from
+      (select no, s.code code,name,price,salecnt,
+         @saleprice:=price*salecnt saleprice,
+         @addtax := ceil(@saleprice/11) addtax,
+         @supprice := @saleprice - @addtax supplyprice,
+         marginrate,
+         @manPrice := round(@supprice *(marginrate/100)) marginprice
+         from sale s join product p on s.code = p.code) t
+         order by if(isSalePrice, saleprice,marginprice) desc;
+   END;
+CREATE PROCEDURE proc_sale_stat()
+BEGIN
+select sum(@saleprice=:price*salecnt) sale_price,
+sum(@addtax := ceil(@saleprice/11)) addtax_price,
+sum(@supprice := @saleprice - @addtax) supply_price
+from sale s join product p on s.code = p.code;
+END;
+
+create procedure proc_salefull_insert(
+	in _code char(4),
+	in _price integer,
+	in _salecnt integer,
+	in _marginTate integer )
+begin 
+declare sale_price integer;
+declare addtax integer;
+declare supply_price integer;
+declare margin_price intrger;
+
+set sale_price = _price * _salecnt;
+set addtax = ceil(sale_price/11);
+set supply_price = sale_price - addtax;
+set margin_price = round(supply_price*(_marginRate/100));
+insert into salefull(code, price, salecnt, marginRate, sale_price, addtax, supply_price, margin_price)
+values(_code, _price, _calecnt, _marginRate, sale_price, addtax, supply_price, margin_price);
+end;
+
+-- trigger
+create  trigger tri_sale_insert_after_detail
+after insert in sale
+for each row 
+begin 
+	set @saleprice = new.price * new.salecnt,
+	@addtax = ceil(@saleprice/11),
+	@supprice = @saleprice - @addtax,
+	@marprice = rodun(@supprice * (new.marginrate/100));
+	
+	insert into saledetail(no, sale_price, addTax, supply_price, margin_price)
+	values(new.no, @saleprice, @addtax, @supprice, @marprice);
+
+
+create trigger tri_sale_update_after_detail
+after update on sale
+for each row
+BEGIN
+   set @saleprice = NEW.price * NEW.salecnt,
+   @addtax = ceil(@saleprice/11),
+   @supprice = @saleprice - @addtax,
+   @marPrice = round(@supprice *(new.marginrate/100));
+   
+   UPDATE saledetail
+   SET sale_price=@saleprice, addTax=@addtax, supply_price=@supprice, margin_price=@manPrice
+END;
+
+create trigger tri_sale_delete_after_detail
+after delete on sale
+for each row
+BEGIN
+   delete from saledetail
+   where no = old.no;
+END;
+
+
+
+
+
+
+
+
+
+
+
+	
+
